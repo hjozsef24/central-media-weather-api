@@ -3,34 +3,30 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\City;
-use App\Models\WeatherRecord;
 use Illuminate\Http\Request;
-use Carbon\Carbon;
+use App\Services\WeatherService;
 
 class WeatherController extends Controller
 {
+    protected WeatherService $weatherService;
+
+    public function __construct(WeatherService $weatherService)
+    {
+        $this->weatherService = $weatherService;
+    }
+
     public function index(Request $request)
     {
-        $query = WeatherRecord::query();
-
-        if ($request->has('city')) {
-            $cityName = $request->query('city');
-
-            $city = City::where('name', $cityName)->first();
-
-            if (!$city) {
-                return response()->json([
-                    'message' => 'City not found.'
-                ], 404);
+        try {
+            if ($request->has('city')) {
+                $records = $this->weatherService->getWeatherByCity($request->query('city'));
+            } else {
+                $records = $this->weatherService->getAllWeatherRecords();
             }
 
-            $query->where('name', $cityName)
-                ->where('created_at', '>=', Carbon::now()->subDay());
+            return response()->json($records);
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 404);
         }
-
-        $records = $query->orderBy('created_at', 'desc')->get();
-
-        return response()->json($records);
     }
 }
